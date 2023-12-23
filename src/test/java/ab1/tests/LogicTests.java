@@ -131,5 +131,4 @@ public class LogicTests {
         assertFalse(instance.acceptsWord("xyaz"));
         assertFalse(instance.acceptsWord("ETI is fun!"));
     }
-
 }
