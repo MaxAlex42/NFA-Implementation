@@ -132,6 +132,7 @@ public class NFAImpl implements NFA {
             throw new FinalizedStateException();
         }
         char[] input = word.toCharArray();
+        return false;
 
     }
 
