@@ -13,7 +13,7 @@ public class NFAImpl implements NFA {
     private Set<String> states;
     private Collection<Transition> transitions;
     private Set<String> acceptingStates;
-    private final String initialState;
+    private String initialState;
     private char[] alphabet;
     private boolean finalized;
 
@@ -81,10 +81,34 @@ public class NFAImpl implements NFA {
 
     @Override
     public NFA concatenation(NFA other) throws FinalizedStateException {
+        finalized = false;
         if (isFinalized()) {
             throw new FinalizedStateException();
         }
-        return null;
+
+        NFAImpl NFAresult = new NFAImpl("");
+
+        //states und transitions von NFA1 in NFAresult kopieren
+        NFAresult.states.addAll(this.states);
+        NFAresult.transitions.addAll(this.transitions);
+
+        //states und transitions von NFA2 in NFAresult kopieren
+        NFAresult.states.addAll(other.getStates());
+        NFAresult.transitions.addAll(other.getTransitions());
+
+        //epsilon-Übergänge von den Endzuständen des NFA1 zu den Anfangszuständen des NFA2
+        for(String acceptingStates : this.acceptingStates){
+            Transition epsilonTransition = new Transition(acceptingStates, null, other.getInitialState());
+            NFAresult.addTransition(epsilonTransition);
+        }
+
+        //Startzustand von NFAresult = Startzustand von NFA1
+        NFAresult.initialState = this.initialState;
+
+        NFAresult.acceptingStates.addAll(other.getAcceptingStates());
+
+        NFAresult.finalizeAutomaton();
+        return NFAresult;
     }
 
     @Override
@@ -132,10 +156,23 @@ public class NFAImpl implements NFA {
             throw new FinalizedStateException();
         }
         char[] input = word.toCharArray();
-        return false;
+        String currentState = getInitialState();
 
-    }
-/*
+        for(char c : input) {
+            ArrayList<Transition> transition = findTransition(c, currentState);
+
+            if (transition.isEmpty()) {
+                return false;
+            }
+
+            currentState = transition.iterator().next().toState();
+        }
+
+        return getAcceptingStates().contains(currentState);
+        }
+
+
+    /*
     Deterministic approach
     @Override
     public boolean acceptsWord(String word) throws FinalizedStateException {
@@ -156,8 +193,8 @@ public class NFAImpl implements NFA {
             currentState = match.toState();
         }
         return acceptingStates.contains(currentState);
-    }
- */
+    }*/
+
     private ArrayList<Transition> findTransition(Character c, String state) {
         ArrayList<Transition> matches = new ArrayList<>();
         for (Transition t : transitions) {
