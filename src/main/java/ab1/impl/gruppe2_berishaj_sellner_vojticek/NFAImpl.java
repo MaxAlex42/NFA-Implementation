@@ -3,18 +3,13 @@ package ab1.impl.gruppe2_berishaj_sellner_vojticek;
 import ab1.FinalizedStateException;
 import ab1.NFA;
 import ab1.Transition;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class NFAImpl implements NFA {
-    private Set<String> states;
-    private Collection<Transition> transitions;
-    private Set<String> acceptingStates;
+    private final Set<String> states;
+    private final Collection<Transition> transitions;
+    private final Set<String> acceptingStates;
     private String initialState;
-    private char[] alphabet;
     private boolean finalized;
 
     public NFAImpl(String startState) {
@@ -65,7 +60,7 @@ public class NFAImpl implements NFA {
 
     @Override
     public NFA union(NFA other) throws FinalizedStateException {
-        if (isFinalized()) {
+        if (!isFinalized()) {
             throw new FinalizedStateException();
         }
         return null;
@@ -73,7 +68,7 @@ public class NFAImpl implements NFA {
 
     @Override
     public NFA intersection(NFA other) throws FinalizedStateException {
-        if (isFinalized()) {
+        if (!isFinalized()) {
             throw new FinalizedStateException();
         }
         return null;
@@ -81,39 +76,38 @@ public class NFAImpl implements NFA {
 
     @Override
     public NFA concatenation(NFA other) throws FinalizedStateException {
-        finalized = false;
-        if (isFinalized()) {
+        if (!isFinalized()) {
             throw new FinalizedStateException();
         }
 
-        NFAImpl NFAresult = new NFAImpl("");
+        NFAImpl NFAResult = new NFAImpl("");
 
-        //states und transitions von NFA1 in NFAresult kopieren
-        NFAresult.states.addAll(this.states);
-        NFAresult.transitions.addAll(this.transitions);
+        //states und transitions von NFA1 in NFAResult kopieren
+        NFAResult.states.addAll(this.states);
+        NFAResult.transitions.addAll(this.transitions);
 
-        //states und transitions von NFA2 in NFAresult kopieren
-        NFAresult.states.addAll(other.getStates());
-        NFAresult.transitions.addAll(other.getTransitions());
+        //states und transitions von NFA2 in NFAResult kopieren
+        NFAResult.states.addAll(other.getStates());
+        NFAResult.transitions.addAll(other.getTransitions());
 
         //epsilon-Übergänge von den Endzuständen des NFA1 zu den Anfangszuständen des NFA2
         for(String acceptingStates : this.acceptingStates){
             Transition epsilonTransition = new Transition(acceptingStates, null, other.getInitialState());
-            NFAresult.addTransition(epsilonTransition);
+            NFAResult.addTransition(epsilonTransition);
         }
 
-        //Startzustand von NFAresult = Startzustand von NFA1
-        NFAresult.initialState = this.initialState;
+        //Startzustand von NFAResult = Startzustand von NFA1
+        NFAResult.initialState = this.initialState;
 
-        NFAresult.acceptingStates.addAll(other.getAcceptingStates());
+        NFAResult.acceptingStates.addAll(other.getAcceptingStates());
 
-        NFAresult.finalizeAutomaton();
-        return NFAresult;
+        NFAResult.finalizeAutomaton();
+        return NFAResult;
     }
 
     @Override
     public NFA kleeneStar() throws FinalizedStateException {
-        if (isFinalized()) {
+        if (!isFinalized()) {
             throw new FinalizedStateException();
         }
         return null;
@@ -121,7 +115,7 @@ public class NFAImpl implements NFA {
 
     @Override
     public NFA plusOperator() throws FinalizedStateException {
-        if (isFinalized()) {
+        if (!isFinalized()) {
             throw new FinalizedStateException();
         }
         return null;
@@ -129,10 +123,19 @@ public class NFAImpl implements NFA {
 
     @Override
     public NFA complement() throws FinalizedStateException {
-        if (isFinalized()) {
+        if (!isFinalized()) {
             throw new FinalizedStateException();
         }
-        return null;
+        NFAImpl complementNFA = new NFAImpl("START");
+
+        for (String s : states) {
+            complementNFA.states.add(s);
+            if (!acceptingStates.contains(s)) {
+                complementNFA.acceptingStates.add(s);
+            }
+        }
+        complementNFA.finalizeAutomaton();
+        return complementNFA;
     }
 
     @Override
@@ -147,31 +150,76 @@ public class NFAImpl implements NFA {
 
     @Override
     public boolean isFinite() {
+        Set<String> visited = new HashSet<>();
+        Map<String, Boolean> recursionStack = new HashMap<>();
+
+        for (String state : states) {
+            if (isCyclic(state, visited, recursionStack)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isCyclic(String state, Set<String> visited, Map<String, Boolean> recursionStack) {
+        if (!visited.contains(state)) {
+            visited.add(state);
+            recursionStack.put(state, true);
+
+            ArrayList<Transition> transitionsFromState = findTransition(null, state);
+            for (Transition transition : transitionsFromState) {
+                String nextState = transition.toState();
+                if (!visited.contains(nextState) && isCyclic(nextState, visited, recursionStack)) {
+                    return true;
+                } else if (recursionStack.get(nextState) != null && recursionStack.get(nextState)) {
+                    return true;
+                }
+            }
+        }
+        recursionStack.put(state, false);
         return false;
     }
 
     @Override
     public boolean acceptsWord(String word) throws FinalizedStateException {
-        if(!isFinalized()) {
+        if (!isFinalized()) {
             throw new FinalizedStateException();
         }
-        char[] input = word.toCharArray();
-        String currentState = getInitialState();
+        return acceptsWordRecursive(word, initialState);
+    }
 
-        for(char c : input) {
-            ArrayList<Transition> transition = findTransition(c, currentState);
+    private boolean acceptsWordRecursive(String remainingWord, String currentState) {
+        if (remainingWord.isEmpty()) {
+            return acceptingStates.contains(currentState);
+        }
+        char currentSymbol = remainingWord.charAt(0);
+        ArrayList<Transition> possibleTransitions = findTransition(currentSymbol, currentState);
+        possibleTransitions.addAll(findTransition(null, currentState));
 
-            if (transition.isEmpty()) {
-                return false;
+        for (Transition transition : possibleTransitions) {
+            String nextState = transition.toState();
+            if (transition.readSymbol() == null) {
+                if (acceptsWordRecursive(remainingWord, nextState)) {
+                    return true;
+                }
+            } else {
+                if (transition.readSymbol() == currentSymbol && acceptsWordRecursive(remainingWord.substring(1), nextState)) {
+                    return true;
+                }
             }
-
-            currentState = transition.iterator().next().toState();
         }
+        return false;
+    }
 
-        return getAcceptingStates().contains(currentState);
+    private ArrayList<Transition> findTransition(Character c, String state) {
+        ArrayList<Transition> matches = new ArrayList<>();
+        for (Transition t : transitions) {
+            if (t.readSymbol() == c && t.fromState().equals(state)) {
+                matches.add(t);
+            }
         }
-
-
+        return matches;
+    }
     /*
     Deterministic approach
     @Override
@@ -185,7 +233,7 @@ public class NFAImpl implements NFA {
         for (char c : input) {
             match = findTransition(c, currentState);
             if (match == null) {
-                match = findTransition(c, currentState);
+                match = findTransition(null, currentState);
                 if (match == null) {
                     return false;
                 }
@@ -193,20 +241,8 @@ public class NFAImpl implements NFA {
             currentState = match.toState();
         }
         return acceptingStates.contains(currentState);
-    }*/
-
-    private ArrayList<Transition> findTransition(Character c, String state) {
-        ArrayList<Transition> matches = new ArrayList<>();
-        for (Transition t : transitions) {
-            if (t.readSymbol() == c && t.fromState().equals(state)) {
-                matches.add(t);
-            }
-        }
-        return matches;
     }
 
-    /*
-    Methode für nicht-deterministisches Verhalten
     private Transition findTransition(Character c, String state) {
         for (Transition t : transitions) {
             if (t.readSymbol() == c && t.fromState().equals(state)) {
