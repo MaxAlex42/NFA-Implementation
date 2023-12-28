@@ -69,7 +69,7 @@ public class SimpleTests {
                         .toState("ACCEPT")
                         .build()
         );
-
+        instance.addAcceptingState("ACCEPT");  //?
         assertEquals(2, instance.getStates().size());
     }
 

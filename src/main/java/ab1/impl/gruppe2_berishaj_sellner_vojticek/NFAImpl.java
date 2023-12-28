@@ -16,10 +16,10 @@ public class NFAImpl implements NFA {
         initialState = startState;
         states = new HashSet<>();
         states.add(startState);
-        states.add("ACCEPT");
+        //states.add("ACCEPT");
         transitions = new ArrayList<>();
         acceptingStates = new HashSet<>();
-        acceptingStates.add("ACCEPT");
+        //acceptingStates.add("ACCEPT");
     }
     @Override
     public Set<String> getStates() {
@@ -80,12 +80,10 @@ public class NFAImpl implements NFA {
             throw new FinalizedStateException();
         }
 
-        NFAImpl NFAResult = new NFAImpl("");
-
+        NFAImpl NFAResult = new NFAImpl("NEWSTART");
         //states und transitions von NFA1 in NFAResult kopieren
         NFAResult.states.addAll(this.states);
         NFAResult.transitions.addAll(this.transitions);
-
         //states und transitions von NFA2 in NFAResult kopieren
         NFAResult.states.addAll(other.getStates());
         NFAResult.transitions.addAll(other.getTransitions());
@@ -96,10 +94,6 @@ public class NFAImpl implements NFA {
             NFAResult.addTransition(epsilonTransition);
         }
 
-        //Startzustand von NFAResult = Startzustand von NFA1
-        NFAResult.initialState = this.initialState;
-
-        NFAResult.acceptingStates.addAll(other.getAcceptingStates());
 
         NFAResult.finalizeAutomaton();
         return NFAResult;
@@ -134,6 +128,11 @@ public class NFAImpl implements NFA {
                 complementNFA.acceptingStates.add(s);
             }
         }
+        complementNFA.acceptingStates.remove("ACCEPT");
+        for (Transition t : transitions) {
+            complementNFA.transitions.add(new Transition(t.toState(), t.readSymbol(), t.fromState()));
+        }
+        complementNFA.transitions.addAll(transitions);
         complementNFA.finalizeAutomaton();
         return complementNFA;
     }
