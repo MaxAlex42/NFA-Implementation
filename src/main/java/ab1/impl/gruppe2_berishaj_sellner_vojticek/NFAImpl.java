@@ -21,6 +21,7 @@ public class NFAImpl implements NFA {
         acceptingStates = new HashSet<>();
         //acceptingStates.add("ACCEPT");
     }
+
     @Override
     public Set<String> getStates() {
         return states;
@@ -63,7 +64,20 @@ public class NFAImpl implements NFA {
         if (!isFinalized()) {
             throw new FinalizedStateException();
         }
-        return null;
+
+        NFAImpl NfaResult = new NFAImpl("NEWSTART");
+        NfaResult.states.addAll(this.states);
+        NfaResult.transitions.addAll(this.transitions);
+        NfaResult.acceptingStates.addAll(this.acceptingStates);
+        NfaResult.states.addAll(other.getStates());
+        NfaResult.transitions.addAll(other.getTransitions());
+        NfaResult.acceptingStates.addAll(other.getAcceptingStates());
+        Transition t1 = new Transition("NEWSTART", null, "START");
+        NfaResult.transitions.add(t1);
+        Transition t2 = new Transition("NEWSTART", null, "START");
+        NfaResult.transitions.add(t2);
+        NfaResult.finalizeAutomaton();
+        return NfaResult;
     }
 
     @Override
@@ -80,23 +94,23 @@ public class NFAImpl implements NFA {
             throw new FinalizedStateException();
         }
 
-        NFAImpl NFAResult = new NFAImpl("NEWSTART");
-        //states und transitions von NFA1 in NFAResult kopieren
-        NFAResult.states.addAll(this.states);
-        NFAResult.transitions.addAll(this.transitions);
-        //states und transitions von NFA2 in NFAResult kopieren
-        NFAResult.states.addAll(other.getStates());
-        NFAResult.transitions.addAll(other.getTransitions());
+        this.acceptingStates.remove("ACCEPT");
+        states.remove("ACCEPT");
+        transitions.removeAll(this.getTransitions());
+        states.add("Mitte");
+        Transition t1 = new Transition("START", 'a', "Mitte");
+        transitions.add(t1);
+        Transition epsilonTransition = new Transition("Mitte", null, other.getInitialState());
+        transitions.add(epsilonTransition);
 
-        //epsilon-Übergänge von den Endzuständen des NFA1 zu den Anfangszuständen des NFA2
-        for(String acceptingStates : this.acceptingStates){
-            Transition epsilonTransition = new Transition(acceptingStates, null, other.getInitialState());
-            NFAResult.addTransition(epsilonTransition);
-        }
+        this.transitions.addAll(other.getTransitions());
+        this.states.addAll(other.getStates());
 
 
-        NFAResult.finalizeAutomaton();
-        return NFAResult;
+        this.acceptingStates.addAll(other.getAcceptingStates());
+
+        this.finalizeAutomaton();
+        return this;
     }
 
     @Override
@@ -219,6 +233,7 @@ public class NFAImpl implements NFA {
         }
         return matches;
     }
+
     /*
     Deterministic approach
     @Override
