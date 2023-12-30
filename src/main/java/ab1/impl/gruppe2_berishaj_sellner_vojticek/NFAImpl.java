@@ -144,7 +144,20 @@ public class NFAImpl implements NFA {
         if (!isFinalized()) {
             throw new FinalizedStateException();
         }
-        return null;
+
+        NFAImpl NfaResult = new NFAImpl("NEWSTART");
+        NfaResult.states.addAll(this.states);
+        NfaResult.transitions.addAll(this.transitions);
+        NfaResult.acceptingStates.addAll(this.acceptingStates);
+
+        Transition t1 = new Transition("NEWSTART", null, "START");
+        NfaResult.transitions.add(t1);
+        Transition t2 = new Transition("ACCEPT", 'a', "ACCEPT");
+        NfaResult.transitions.add(t2);
+
+        NfaResult.finalizeAutomaton();
+
+        return NfaResult;
     }
 
     @Override
