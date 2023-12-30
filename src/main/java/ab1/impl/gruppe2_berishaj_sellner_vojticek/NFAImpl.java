@@ -72,11 +72,14 @@ public class NFAImpl implements NFA {
         NfaResult.states.addAll(other.getStates());
         NfaResult.transitions.addAll(other.getTransitions());
         NfaResult.acceptingStates.addAll(other.getAcceptingStates());
+
         Transition t1 = new Transition("NEWSTART", null, "START");
         NfaResult.transitions.add(t1);
         Transition t2 = new Transition("NEWSTART", null, "START");
         NfaResult.transitions.add(t2);
+
         NfaResult.finalizeAutomaton();
+
         return NfaResult;
     }
 
@@ -118,7 +121,22 @@ public class NFAImpl implements NFA {
         if (!isFinalized()) {
             throw new FinalizedStateException();
         }
-        return null;
+
+        NFAImpl NfaResult = new NFAImpl("NEWSTART");
+        NfaResult.states.addAll(this.states);
+        NfaResult.transitions.addAll(this.transitions);
+        NfaResult.acceptingStates.addAll(this.acceptingStates);
+        NfaResult.addAcceptingState("NEWSTART");
+        NfaResult.addAcceptingState("START");
+
+        Transition t1 = new Transition("NEWSTART", null, "START");
+        NfaResult.transitions.add(t1);
+        Transition t2 = new Transition("ACCEPT", 'a', "ACCEPT");
+        NfaResult.transitions.add(t2);
+
+        NfaResult.finalizeAutomaton();
+
+        return NfaResult;
     }
 
     @Override
