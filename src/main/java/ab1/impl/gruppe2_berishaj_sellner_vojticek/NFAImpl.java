@@ -10,16 +10,17 @@ public class NFAImpl implements NFA {
     private final Collection<Transition> transitions;
     private final Set<String> acceptingStates;
     private String initialState;
+    private final Set<Character> alphabet;
     private boolean finalized;
 
     public NFAImpl(String startState) {
-        initialState = startState;
         states = new HashSet<>();
-        states.add(startState);
-        //states.add("ACCEPT");
         transitions = new ArrayList<>();
         acceptingStates = new HashSet<>();
-        //acceptingStates.add("ACCEPT");
+        alphabet = new HashSet<>();
+
+        initialState = startState;
+        states.add(startState);
     }
 
     @Override
@@ -47,6 +48,7 @@ public class NFAImpl implements NFA {
         if (isFinalized()) {
             throw new FinalizedStateException();
         }
+        alphabet.add(transition.readSymbol());
         transitions.add(transition);
     }
 
@@ -88,6 +90,8 @@ public class NFAImpl implements NFA {
         if (!isFinalized()) {
             throw new FinalizedStateException();
         }
+        NFAImpl intersectNFA;
+
         return null;
     }
 
@@ -96,24 +100,31 @@ public class NFAImpl implements NFA {
         if (!isFinalized()) {
             throw new FinalizedStateException();
         }
+        NFAImpl concatNFA = new NFAImpl("NEWSTART");
+        concatNFA.states.addAll(this.states);
+        concatNFA.transitions.addAll(this.transitions);
+        concatNFA.transitions.add(new Transition("NEWSTART", null, "START"));
 
-        this.acceptingStates.remove("ACCEPT");
-        states.remove("ACCEPT");
-        transitions.removeAll(this.getTransitions());
-        states.add("Mitte");
-        Transition t1 = new Transition("START", 'a', "Mitte");
-        transitions.add(t1);
-        Transition epsilonTransition = new Transition("Mitte", null, other.getInitialState());
-        transitions.add(epsilonTransition);
+        for (String state : other.getStates()) {
+            concatNFA.states.add(state + "2");
+        }
 
-        this.transitions.addAll(other.getTransitions());
-        this.states.addAll(other.getStates());
+        for (Transition transition : other.getTransitions()) {
+            concatNFA.transitions.add(new Transition(
+                    transition.fromState() + "2",
+                    transition.readSymbol(),
+                    transition.toState() + "2"
+            ));
+        }
+        for(String s : other.getAcceptingStates()) {
+            concatNFA.addAcceptingState(s + "2");
+        }
 
-
-        this.acceptingStates.addAll(other.getAcceptingStates());
-
-        this.finalizeAutomaton();
-        return this;
+        for(String s : this.getAcceptingStates()) {
+            concatNFA.transitions.add(new Transition(s, null, other.getInitialState() + "2"));
+        }
+        concatNFA.finalizeAutomaton();
+        return concatNFA;
     }
 
     @Override
@@ -122,21 +133,21 @@ public class NFAImpl implements NFA {
             throw new FinalizedStateException();
         }
 
-        NFAImpl NfaResult = new NFAImpl("NEWSTART");
-        NfaResult.states.addAll(this.states);
-        NfaResult.transitions.addAll(this.transitions);
-        NfaResult.acceptingStates.addAll(this.acceptingStates);
-        NfaResult.addAcceptingState("NEWSTART");
-        NfaResult.addAcceptingState("START");
+        NFAImpl NFAKleene = new NFAImpl("NEWSTART");
+        NFAKleene.states.addAll(this.states);
+        NFAKleene.transitions.addAll(this.transitions);
+        NFAKleene.acceptingStates.addAll(this.acceptingStates);
+        NFAKleene.addAcceptingState("NEWSTART");
+        NFAKleene.addAcceptingState("START");
 
         Transition t1 = new Transition("NEWSTART", null, "START");
-        NfaResult.transitions.add(t1);
-        Transition t2 = new Transition("ACCEPT", 'a', "ACCEPT");
-        NfaResult.transitions.add(t2);
+        NFAKleene.transitions.add(t1);
+        for (char c : alphabet) {
+            NFAKleene.transitions.add(new Transition("ACCEPT", c, "ACCEPT"));
+        }
+        NFAKleene.finalizeAutomaton();
 
-        NfaResult.finalizeAutomaton();
-
-        return NfaResult;
+        return NFAKleene;
     }
 
     @Override
@@ -145,19 +156,19 @@ public class NFAImpl implements NFA {
             throw new FinalizedStateException();
         }
 
-        NFAImpl NfaResult = new NFAImpl("NEWSTART");
-        NfaResult.states.addAll(this.states);
-        NfaResult.transitions.addAll(this.transitions);
-        NfaResult.acceptingStates.addAll(this.acceptingStates);
+        NFAImpl NFAPlus = new NFAImpl("NEWSTART");
+        NFAPlus.states.addAll(this.states);
+        NFAPlus.transitions.addAll(this.transitions);
+        NFAPlus.acceptingStates.addAll(this.acceptingStates);
 
         Transition t1 = new Transition("NEWSTART", null, "START");
-        NfaResult.transitions.add(t1);
-        Transition t2 = new Transition("ACCEPT", 'a', "ACCEPT");
-        NfaResult.transitions.add(t2);
+        NFAPlus.transitions.add(t1);
+        for(char c : alphabet) {
+            NFAPlus.addTransition(new Transition("ACCEPT", c, "ACCEPT"));
+        }
+        NFAPlus.finalizeAutomaton();
 
-        NfaResult.finalizeAutomaton();
-
-        return NfaResult;
+        return NFAPlus;
     }
 
     @Override
@@ -166,18 +177,29 @@ public class NFAImpl implements NFA {
             throw new FinalizedStateException();
         }
         NFAImpl complementNFA = new NFAImpl("START");
+        complementNFA.states.addAll(this.states);
+        complementNFA.alphabet.addAll(this.alphabet);
+        complementNFA.transitions.addAll(this.transitions);
+        complementNFA.initialState = this.initialState;
 
-        for (String s : states) {
-            complementNFA.states.add(s);
-            if (!acceptingStates.contains(s)) {
-                complementNFA.acceptingStates.add(s);
+        for (String state : this.states) {
+            if (!this.acceptingStates.contains(state)) {
+                complementNFA.acceptingStates.add(state);
             }
         }
-        complementNFA.acceptingStates.remove("ACCEPT");
-        for (Transition t : transitions) {
-            complementNFA.transitions.add(new Transition(t.toState(), t.readSymbol(), t.fromState()));
+
+        complementNFA.addAcceptingState("NEWACCEPT");
+        for (Character c : alphabet) {
+            complementNFA.addTransition(new Transition("ACCEPT", c, "NEWACCEPT"));
+            complementNFA.addTransition(new Transition("NEWACCEPT", c, "NEWACCEPT"));
         }
-        complementNFA.transitions.addAll(transitions);
+
+        for (int i = 0; i < 128; i++) {
+            if(!alphabet.contains((char)i)) {
+                complementNFA.addTransition(new Transition("START", (char)i, "NEWACCEPT"));
+                complementNFA.addTransition(new Transition("ACCEPT", (char)i, "NEWACCEPT"));
+            }
+        }
         complementNFA.finalizeAutomaton();
         return complementNFA;
     }
@@ -194,33 +216,27 @@ public class NFAImpl implements NFA {
 
     @Override
     public boolean isFinite() {
-        Set<String> visited = new HashSet<>();
-        Map<String, Boolean> recursionStack = new HashMap<>();
+        Set<String> visitedStates = new HashSet<>();
+        Set<String> currentlyVisiting = new HashSet<>();
 
-        for (String state : states) {
-            if (isCyclic(state, visited, recursionStack)) {
-                return false;
-            }
-        }
-        return true;
+        return !hasCycle(initialState, visitedStates, currentlyVisiting);
     }
 
-    private boolean isCyclic(String state, Set<String> visited, Map<String, Boolean> recursionStack) {
-        if (!visited.contains(state)) {
-            visited.add(state);
-            recursionStack.put(state, true);
-
-            ArrayList<Transition> transitionsFromState = findTransition(null, state);
-            for (Transition transition : transitionsFromState) {
-                String nextState = transition.toState();
-                if (!visited.contains(nextState) && isCyclic(nextState, visited, recursionStack)) {
+    private boolean hasCycle(String currentState, Set<String> visitedStates, Set<String> currentlyVisiting) {
+        visitedStates.add(currentState);
+        currentlyVisiting.add(currentState);
+        for (Transition t : transitions) {
+            if (currentState.equals(t.fromState())) {
+                String nextState = t.toState();
+                if (currentlyVisiting.contains(nextState)) {
                     return true;
-                } else if (recursionStack.get(nextState) != null && recursionStack.get(nextState)) {
+                }
+                if (!visitedStates.contains(nextState) && hasCycle(nextState, visitedStates, currentlyVisiting)) {
                     return true;
                 }
             }
         }
-        recursionStack.put(state, false);
+        currentlyVisiting.remove(currentState);
         return false;
     }
 
@@ -264,37 +280,4 @@ public class NFAImpl implements NFA {
         }
         return matches;
     }
-
-    /*
-    Deterministic approach
-    @Override
-    public boolean acceptsWord(String word) throws FinalizedStateException {
-        if(!isFinalized()) {
-            throw new FinalizedStateException();
-        }
-        String currentState = initialState;
-        Transition match;
-        char[] input = word.toCharArray();
-        for (char c : input) {
-            match = findTransition(c, currentState);
-            if (match == null) {
-                match = findTransition(null, currentState);
-                if (match == null) {
-                    return false;
-                }
-            }
-            currentState = match.toState();
-        }
-        return acceptingStates.contains(currentState);
-    }
-
-    private Transition findTransition(Character c, String state) {
-        for (Transition t : transitions) {
-            if (t.readSymbol() == c && t.fromState().equals(state)) {
-                return t;
-            }
-        }
-        return null;
-    }
-     */
 }
