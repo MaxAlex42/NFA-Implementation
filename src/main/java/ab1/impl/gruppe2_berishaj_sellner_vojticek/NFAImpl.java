@@ -90,7 +90,6 @@ public class NFAImpl implements NFA {
         if (!isFinalized()) {
             throw new FinalizedStateException();
         }
-        NFAImpl intersectNFA;
 
         return null;
     }
