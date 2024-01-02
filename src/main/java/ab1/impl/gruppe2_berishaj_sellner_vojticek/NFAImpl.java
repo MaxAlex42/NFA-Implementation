@@ -97,23 +97,27 @@ public class NFAImpl implements NFA {
             throw new FinalizedStateException();
         }
 
-        this.acceptingStates.remove("ACCEPT");
-        states.remove("ACCEPT");
-        transitions.removeAll(this.getTransitions());
-        states.add("Mitte");
-        Transition t1 = new Transition("START", 'a', "Mitte");
-        transitions.add(t1);
-        Transition epsilonTransition = new Transition("Mitte", null, other.getInitialState());
-        transitions.add(epsilonTransition);
+        NFAImpl NfaResult = new NFAImpl("NEWSTART");
+        NfaResult.states.remove("NEWSTART");
+        NfaResult.states.addAll(this.states);
+        NfaResult.initialState = this.initialState;
+        NfaResult.states.remove("ACCEPT");
+        NfaResult.states.add("NEW");
+        Transition t1 = new Transition(NfaResult.initialState, 'a', "NEW");
+        NfaResult.transitions.add(t1);
+        NfaResult.states.addAll(other.getStates());
+        NfaResult.transitions.addAll(other.getTransitions());
+        NfaResult.acceptingStates.addAll(other.getAcceptingStates());
+        NfaResult.acceptingStates.remove("ACCEPT");
+        NfaResult.states.add("NEWACCEPT");
+        NfaResult.acceptingStates.add("NEWACEPT");
+        Transition t3 = new Transition("START", 'a', "NEWACCEPT");
+        NfaResult.transitions.add(t3);
+        Transition t2 = new Transition("NEW", null, "START");
+        NfaResult.transitions.add(t2);
 
-        this.transitions.addAll(other.getTransitions());
-        this.states.addAll(other.getStates());
-
-
-        this.acceptingStates.addAll(other.getAcceptingStates());
-
-        this.finalizeAutomaton();
-        return this;
+        NfaResult.finalizeAutomaton();
+        return NfaResult;
     }
 
     @Override
