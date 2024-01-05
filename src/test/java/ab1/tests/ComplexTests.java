@@ -38,11 +38,11 @@ public class ComplexTests {
     @Test
     public void intersection1Test() {
         var nfaA = buildCharLanguage('a');
-        var nfaB = buildCharLanguage('a');
+        var nfaB = buildCharLanguage('b');
 
         var testInstance = nfaA.intersection(nfaB);
 
-        assertTrue(testInstance.acceptsWord("a"));
+        assertFalse(testInstance.acceptsWord("a"));
         assertFalse(testInstance.acceptsWord("b"));
         assertFalse(testInstance.acceptsWord("ab"));
         assertFalse(testInstance.acceptsWord("ba"));

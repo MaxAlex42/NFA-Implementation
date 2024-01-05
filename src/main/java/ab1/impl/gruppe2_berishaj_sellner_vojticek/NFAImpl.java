@@ -29,6 +29,18 @@ public class NFAImpl implements NFA {
     }
 
     @Override
+    public String getNextState(String currentState, char symbol) {
+        String nextState = "";
+        for (Transition transition : transitions) {
+            if (transition.fromState().equals(currentState) && transition.readSymbol() == symbol) {
+                nextState = transition.toState();
+            }
+        }
+        return nextState;
+    }
+
+
+    @Override
     public Collection<Transition> getTransitions() {
         return transitions;
     }
@@ -41,6 +53,11 @@ public class NFAImpl implements NFA {
     @Override
     public String getInitialState() {
         return initialState;
+    }
+
+    @Override
+    public Set<Character> getAlphabet() {
+        return alphabet;
     }
 
     @Override
@@ -90,12 +107,43 @@ public class NFAImpl implements NFA {
         if (!isFinalized()) {
             throw new FinalizedStateException();
         }
+        NFAImpl intersectionNFA = new NFAImpl("intersectionStartState");
+        intersectionNFA.states.removeAll(states);
 
-        return null;
+        //Add states and alphabet from NFAs
+        intersectionNFA.states.addAll(this.states);
+        intersectionNFA.initialState = this.initialState;
+        intersectionNFA.states.retainAll(other.getStates());
+
+        intersectionNFA.alphabet.addAll(this.alphabet);
+        intersectionNFA.alphabet.retainAll(other.getAlphabet());
+
+        //Create transitions for the new NFA
+        for (String state : intersectionNFA.states) {
+            for (char symbol : intersectionNFA.alphabet) {
+                String nextStates1 = this.getNextState(state, symbol);
+                String nextStates2 = other.getNextState(state, symbol);
+
+                //Check if transitions are not null
+                if (nextStates1 != null && nextStates2 != null) {
+                    intersectionNFA.addTransition(new Transition(state, symbol, nextStates1));
+                    for (String a : this.acceptingStates) {
+                        for (String b : other.getAcceptingStates()) {
+                            if (nextStates1 == a && nextStates2 == b) {
+                                intersectionNFA.addAcceptingState(nextStates1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        intersectionNFA.finalizeAutomaton();
+        return intersectionNFA;
     }
 
     @Override
-    public NFA concatenation(NFA other) throws FinalizedStateException {
+    public NFA concatenation (NFA other) throws FinalizedStateException {
         if (!isFinalized()) {
             throw new FinalizedStateException();
         }

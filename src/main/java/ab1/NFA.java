@@ -1,6 +1,7 @@
 package ab1;
 
 import java.util.Collection;
+import java.util.Set;
 
 /**
  * The {@code NFA} interface represents a Non-deterministic Finite Automaton (NFA) and provides methods to manipulate
@@ -30,6 +31,8 @@ public interface NFA {
      * @return initial state of the automata. This cannot change over the lifetime of the object
      */
     String getInitialState();
+
+    Set<Character> getAlphabet();
 
     /**
      * Add a new transition to the automata.
@@ -114,4 +117,6 @@ public interface NFA {
      * @throws FinalizedStateException if {@link #finalizeAutomaton()} was not already called
      */
     boolean acceptsWord(String word) throws FinalizedStateException;
+
+    String getNextState(String state, char symbol);
 }
