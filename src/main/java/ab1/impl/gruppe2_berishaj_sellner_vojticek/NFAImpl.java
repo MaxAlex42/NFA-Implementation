@@ -92,9 +92,9 @@ public class NFAImpl implements NFA {
         NfaResult.transitions.addAll(other.getTransitions());
         NfaResult.acceptingStates.addAll(other.getAcceptingStates());
 
-        Transition t1 = new Transition("NEWSTART", null, "START");
+        Transition t1 = new Transition("NEWSTART", null, this.getInitialState());
         NfaResult.transitions.add(t1);
-        Transition t2 = new Transition("NEWSTART", null, "START");
+        Transition t2 = new Transition("NEWSTART", null, other.getInitialState());
         NfaResult.transitions.add(t2);
 
         NfaResult.finalizeAutomaton();
@@ -129,7 +129,7 @@ public class NFAImpl implements NFA {
                     intersectionNFA.addTransition(new Transition(state, symbol, nextStates1));
                     for (String a : this.acceptingStates) {
                         for (String b : other.getAcceptingStates()) {
-                            if (nextStates1 == a && nextStates2 == b) {
+                            if (nextStates1.equals(a) && nextStates2.equals(b)) {
                                 intersectionNFA.addAcceptingState(nextStates1);
                             }
                         }
@@ -221,6 +221,7 @@ public class NFAImpl implements NFA {
 
     @Override
     public NFA complement() throws FinalizedStateException {
+        // revert acceptsWord return value
         if (!isFinalized()) {
             throw new FinalizedStateException();
         }
@@ -229,24 +230,24 @@ public class NFAImpl implements NFA {
         complementNFA.alphabet.addAll(this.alphabet);
         complementNFA.transitions.addAll(this.transitions);
         complementNFA.initialState = this.initialState;
-
         for (String state : this.states) {
             if (!this.acceptingStates.contains(state)) {
                 complementNFA.acceptingStates.add(state);
             }
         }
-
         complementNFA.addAcceptingState("NEWACCEPT");
-        for (Character c : alphabet) {
-            complementNFA.addTransition(new Transition("ACCEPT", c, "NEWACCEPT"));
-            complementNFA.addTransition(new Transition("NEWACCEPT", c, "NEWACCEPT"));
-        }
 
         for (int i = 0; i < 128; i++) {
-            if(!alphabet.contains((char)i)) {
-                complementNFA.addTransition(new Transition("START", (char)i, "NEWACCEPT"));
-                complementNFA.addTransition(new Transition("ACCEPT", (char)i, "NEWACCEPT"));
+                for(String s : states) {
+                    for(Transition t : transitions) {
+                        if(t.readSymbol() != null) {
+                            if(!(t.fromState().equals(s) && t.readSymbol() == (char) i)) {
+                                complementNFA.addTransition(new Transition(s, (char) i, "NEWACCEPT"));
+                            }
+                        }
+                    }
             }
+                complementNFA.addTransition(new Transition("NEWACCEPT", (char) i, "NEWACCEPT"));
         }
         complementNFA.finalizeAutomaton();
         return complementNFA;
@@ -292,6 +293,9 @@ public class NFAImpl implements NFA {
     public boolean acceptsWord(String word) throws FinalizedStateException {
         if (!isFinalized()) {
             throw new FinalizedStateException();
+        }
+        if(word == null) {
+            return false;
         }
         return acceptsWordRecursive(word, initialState);
     }
