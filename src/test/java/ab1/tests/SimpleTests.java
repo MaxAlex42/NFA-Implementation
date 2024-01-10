@@ -79,6 +79,4 @@ public class SimpleTests {
 
         assertEquals("START", instance.getInitialState());
     }
-
-
 }

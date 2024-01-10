@@ -18,7 +18,6 @@ public class NFAImpl implements NFA {
         transitions = new ArrayList<>();
         acceptingStates = new HashSet<>();
         alphabet = new HashSet<>();
-
         initialState = startState;
         states.add(startState);
     }
@@ -38,7 +37,6 @@ public class NFAImpl implements NFA {
         }
         return nextState;
     }
-
 
     @Override
     public Collection<Transition> getTransitions() {
@@ -80,7 +78,7 @@ public class NFAImpl implements NFA {
 
     @Override
     public NFA union(NFA other) throws FinalizedStateException {
-        if (!isFinalized()) {
+        if (!(this.isFinalized() && other.isFinalized())) {
             throw new FinalizedStateException();
         }
 
@@ -98,13 +96,12 @@ public class NFAImpl implements NFA {
         NfaResult.transitions.add(t2);
 
         NfaResult.finalizeAutomaton();
-
         return NfaResult;
     }
 
     @Override
     public NFA intersection(NFA other) throws FinalizedStateException {
-        if (!isFinalized()) {
+        if (!(this.isFinalized() && other.isFinalized())) {
             throw new FinalizedStateException();
         }
         NFAImpl intersectionNFA = new NFAImpl("intersectionStartState");
@@ -137,20 +134,19 @@ public class NFAImpl implements NFA {
                 }
             }
         }
-
         intersectionNFA.finalizeAutomaton();
         return intersectionNFA;
     }
 
     @Override
     public NFA concatenation (NFA other) throws FinalizedStateException {
-        if (!isFinalized()) {
+        if (!(this.isFinalized() && other.isFinalized())) {
             throw new FinalizedStateException();
         }
         NFAImpl concatNFA = new NFAImpl("NEWSTART");
         concatNFA.states.addAll(this.states);
         concatNFA.transitions.addAll(this.transitions);
-        concatNFA.transitions.add(new Transition("NEWSTART", null, "START"));
+        concatNFA.transitions.add(new Transition("NEWSTART", null, this.getInitialState()));
 
 
         for (String state : other.getStates()) {
@@ -186,15 +182,16 @@ public class NFAImpl implements NFA {
         NFAKleene.transitions.addAll(this.transitions);
         NFAKleene.acceptingStates.addAll(this.acceptingStates);
         NFAKleene.addAcceptingState("NEWSTART");
-        NFAKleene.addAcceptingState("START");
+        NFAKleene.addAcceptingState(this.getInitialState());
 
-        Transition t1 = new Transition("NEWSTART", null, "START");
+        Transition t1 = new Transition("NEWSTART", null, this.getInitialState());
         NFAKleene.transitions.add(t1);
         for (char c : alphabet) {
-            NFAKleene.transitions.add(new Transition("ACCEPT", c, "ACCEPT"));
+            for(String s : acceptingStates) {
+                NFAKleene.transitions.add(new Transition(s, c, s));
+            }
         }
         NFAKleene.finalizeAutomaton();
-
         return NFAKleene;
     }
 
@@ -209,10 +206,12 @@ public class NFAImpl implements NFA {
         NFAPlus.transitions.addAll(this.transitions);
         NFAPlus.acceptingStates.addAll(this.acceptingStates);
 
-        Transition t1 = new Transition("NEWSTART", null, "START");
+        Transition t1 = new Transition("NEWSTART", null, this.getInitialState());
         NFAPlus.transitions.add(t1);
         for(char c : alphabet) {
-            NFAPlus.addTransition(new Transition("ACCEPT", c, "ACCEPT"));
+            for(String s : acceptingStates) {
+                NFAPlus.addTransition(new Transition(s, c, s));
+            }
         }
         NFAPlus.finalizeAutomaton();
 
@@ -221,7 +220,6 @@ public class NFAImpl implements NFA {
 
     @Override
     public NFA complement() throws FinalizedStateException {
-        // revert acceptsWord return value
         if (!isFinalized()) {
             throw new FinalizedStateException();
         }
@@ -230,27 +228,48 @@ public class NFAImpl implements NFA {
         complementNFA.alphabet.addAll(this.alphabet);
         complementNFA.transitions.addAll(this.transitions);
         complementNFA.initialState = this.initialState;
+
         for (String state : this.states) {
             if (!this.acceptingStates.contains(state)) {
                 complementNFA.acceptingStates.add(state);
             }
         }
         complementNFA.addAcceptingState("NEWACCEPT");
-
         for (int i = 0; i < 128; i++) {
-                for(String s : states) {
-                    for(Transition t : transitions) {
-                        if(t.readSymbol() != null) {
-                            if(!(t.fromState().equals(s) && t.readSymbol() == (char) i)) {
-                                complementNFA.addTransition(new Transition(s, (char) i, "NEWACCEPT"));
-                            }
-                        }
-                    }
+            for (String s : states) {
+                boolean hasTransition = hasTransition(s, (char) i);
+                if (!hasTransition) {
+                    complementNFA.addTransition(new Transition(s, (char) i, "NEWACCEPT"));
+                }
             }
-                complementNFA.addTransition(new Transition("NEWACCEPT", (char) i, "NEWACCEPT"));
+            complementNFA.addTransition(new Transition("NEWACCEPT", (char) i, "NEWACCEPT"));
         }
         complementNFA.finalizeAutomaton();
         return complementNFA;
+    }
+
+    private boolean hasTransition(String s, char i) {
+        boolean hasTransition = false;
+        for (Transition t : transitions) {
+            if (t.fromState().equals(s) && (t.readSymbol() != null && t.readSymbol() == i)) {
+                hasTransition = true;
+                break;
+            }
+        }
+        if (!hasTransition) {
+            for (Transition t : transitions) {
+                if (t.fromState().equals(s) && t.readSymbol() == null) {
+                    String nextState = t.toState();
+                    for (Transition nextTransition : transitions) {
+                        if (nextTransition.fromState().equals(nextState) && nextTransition.readSymbol() == i) {
+                            hasTransition = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return hasTransition;
     }
 
     @Override
@@ -267,7 +286,6 @@ public class NFAImpl implements NFA {
     public boolean isFinite() {
         Set<String> visitedStates = new HashSet<>();
         Set<String> currentlyVisiting = new HashSet<>();
-
         return !hasCycle(initialState, visitedStates, currentlyVisiting);
     }
 

@@ -44,7 +44,7 @@ public class OwnTests {
     }
 
     @Test
-    public void testComplementOrg() {
+    public void testComplementOrig() {
         var instance = factory.buildNFA("START");
         instance.addTransition(
                 Transition.builder()
@@ -94,4 +94,62 @@ public class OwnTests {
         Assertions.assertFalse(nfa.acceptsWord(null));
         Assertions.assertTrue(nfa.acceptsWord(""));
     }
+
+    @Test
+    public void testUnion() {
+        NFA nfa1 = factory.buildNFA("q0");
+        nfa1.addTransition(Transition.builder().fromState("q0").readSymbol('a').toState("q1").build());
+        nfa1.addAcceptingState("q1");
+        NFA nfa2 = factory.buildNFA("q2");
+        nfa2.addTransition(Transition.builder().fromState("q2").readSymbol('b').toState("q3").build());
+        nfa2.addAcceptingState("q3");
+        nfa1.finalizeAutomaton();
+        nfa2.finalizeAutomaton();
+
+        NFA unionNFA = nfa1.union(nfa2);
+        assertTrue(unionNFA.acceptsWord("a"));
+        assertTrue(unionNFA.acceptsWord("b"));
+        assertFalse(unionNFA.acceptsWord("ab"));
+    }
+
+    @Test
+    public void testConcatenation() {
+        NFA nfa1 = factory.buildNFA("q0");
+        nfa1.addTransition(Transition.builder().fromState("q0").readSymbol('a').toState("q1").build());
+        nfa1.addTransition(Transition.builder().build());
+
+        NFA nfa2 = factory.buildNFA("");
+    }
+
+    @Test
+    public void testAcceptsWord() {
+        NFA nfa = factory.buildNFA("q0");
+        nfa.addTransition(Transition.builder().fromState("q0").readSymbol('a').toState("q1").build());
+        nfa.addTransition(Transition.builder().fromState("q1").readSymbol('b').toState("q2").build());
+        nfa.addTransition(Transition.builder().fromState("q2").readSymbol('c').toState("q3").build());
+        nfa.addAcceptingState("q3");
+        nfa.finalizeAutomaton();
+
+        assertFalse(nfa.acceptsWord("a"));
+        assertFalse(nfa.acceptsWord("b"));
+        assertFalse(nfa.acceptsWord("c"));
+        assertTrue(nfa.acceptsWord("abc"));
+    }
+
+    @Test
+    public void testComplexWord() {
+        NFA nfa = factory.buildNFA("q0");
+        nfa.addTransition(new Transition("q0", 'a', "q1"));
+        nfa.addTransition(new Transition("q1", 'b', "q2"));
+        nfa.addTransition(new Transition("q2", 'b', "q2"));
+        nfa.addAcceptingState("q2");
+        nfa.finalizeAutomaton();
+
+        Assertions.assertTrue(nfa.acceptsWord("ab"));
+        Assertions.assertFalse(nfa.acceptsWord("a"));
+        Assertions.assertFalse(nfa.acceptsWord("b"));
+        Assertions.assertTrue(nfa.acceptsWord("abbbbbbbbbb"));
+    }
+
+
 }
